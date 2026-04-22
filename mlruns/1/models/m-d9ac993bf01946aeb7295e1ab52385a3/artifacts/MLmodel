@@ -1,0 +1,23 @@
+artifact_path: /home/helen/projectsZHAW/VT1/iggytop/mlruns/1/models/m-d9ac993bf01946aeb7295e1ab52385a3/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.12.3
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.6.1
+    skops_trusted_types: null
+mlflow_version: 3.11.1
+model_id: m-d9ac993bf01946aeb7295e1ab52385a3
+model_size_bytes: 3939
+model_uuid: m-d9ac993bf01946aeb7295e1ab52385a3
+prompts: null
+run_id: 4c5bc41991a44d76a97e7aa2efff99b3
+utc_time_created: '2026-04-18 17:28:43.078708'

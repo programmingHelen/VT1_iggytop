@@ -1,0 +1,278 @@
+"""
+Figure 2 – ESM2 embeddings of TCRβ chains, coloured by V-segment gene (TRBV).
+Reproduces the UMAP plot with zoom insets shown in the paper.
+ 
+Pipeline
+--------
+1. Load deduplicated AnnData
+2. Extract (cdr3b, v_gene) pairs from the AIRR table
+3. Embed CDR3β sequences with ESM2 (facebook/esm2_t6_8M_UR50D)
+4. Reduce to 2D with UMAP
+5. Plot, coloured by TRBV gene, with two zoom insets
+6. Save to outputs/
+"""
+ 
+import os
+import numpy as np
+import pandas as pd
+import anndata as ad
+import torch
+from transformers import AutoTokenizer, EsmModel
+ 
+import umap
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.patches import ConnectionPatch
+from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
+ 
+# ─────────────────────────────────────────────
+# OUTPUT DIRECTORY
+# ─────────────────────────────────────────────
+ 
+OUTPUT_DIR = "outputs"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+ 
+# ─────────────────────────────────────────────
+# 1. LOAD DATA
+# ─────────────────────────────────────────────
+ 
+adata = ad.read_h5ad("data/deduplicated_anndata.h5ad")
+ 
+# ─────────────────────────────────────────────
+# 2. EXTRACT (cdr3b, v_gene, epitope)
+# ─────────────────────────────────────────────
+ 
+def explode_tcr_vgene(adata):
+    airr     = adata.obsm["airr"]
+    epitopes = adata.obs["epitope_sequence"]
+ 
+    rows = []
+    for i, chains in enumerate(airr):
+        epitope = epitopes.iloc[i]
+        for chain in chains:
+            if chain is None:
+                continue
+            try:
+                if chain["locus"] == "TRB" and chain["productive"]:
+                    
+                    cdr3b = chain["junction_aa"]
+                    v_gene = chain["v_call"]
+
+                    if cdr3b is None:
+                        continue
+
+                    if v_gene is not None:
+                        v_gene = v_gene.split("*")[0]
+
+                    rows.append({
+                        "cdr3b": cdr3b,
+                        "epitope": epitope,
+                        "v_gene": v_gene
+                    })
+
+            except Exception:
+                continue
+ 
+    return pd.DataFrame(rows)
+ 
+ 
+df = explode_tcr_vgene(adata)
+ 
+# basic cleaning
+df = df.dropna()
+# df = df[df["cdr3b"].str.len().between(8, 25)]
+# df = df[df["v_gene"].str.startswith("TRBV")]
+ 
+print(f"Dataset size after cleaning: {len(df)}")
+ 
+# ─────────────────────────────────────────────
+# 3. (OPTIONAL) SUBSAMPLE for speed
+#    Remove / increase this cap for the full run
+# ─────────────────────────────────────────────
+ 
+MAX_SAMPLES = 1000          # set to None to use all rows
+if MAX_SAMPLES and len(df) > MAX_SAMPLES:
+    df = df.sample(MAX_SAMPLES, random_state=42).reset_index(drop=True)
+    print(f"Subsampled to {len(df)} rows")
+ 
+# ─────────────────────────────────────────────
+# 4. LOAD ESM2 MODEL
+# ─────────────────────────────────────────────
+ 
+model_name = "facebook/esm2_t6_8M_UR50D"
+tokenizer  = AutoTokenizer.from_pretrained(model_name)
+model      = EsmModel.from_pretrained(model_name)
+model.eval()
+ 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model  = model.to(device)
+ 
+# ─────────────────────────────────────────────
+# 5. EMBEDDING FUNCTION (BATCHED + CACHE)
+# ─────────────────────────────────────────────
+ 
+embedding_cache: dict = {}
+ 
+def embed_sequences(seqs, batch_size=32):
+    all_embeddings = []
+    for i in range(0, len(seqs), batch_size):
+        batch    = seqs[i : i + batch_size]
+        uncached = [s for s in batch if s not in embedding_cache]
+        if uncached:
+            inputs = tokenizer(
+                uncached,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=64,
+            ).to(device)
+            with torch.no_grad():
+                outputs = model(**inputs)
+            emb = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
+            for s, e in zip(uncached, emb):
+                embedding_cache[s] = e
+        all_embeddings.extend([embedding_cache[s] for s in batch])
+    return np.array(all_embeddings)
+ 
+ 
+print("Embedding CDR3β sequences …")
+tcr_emb = embed_sequences(df["cdr3b"].tolist())
+ 
+# ─────────────────────────────────────────────
+# 6. UMAP PROJECTION
+# ─────────────────────────────────────────────
+ 
+print("Running UMAP …")
+reducer    = umap.UMAP(n_components=2, random_state=42, n_neighbors=15, min_dist=0.1)
+embedding  = reducer.fit_transform(tcr_emb)
+ 
+df["UMAP1"] = embedding[:, 0]
+df["UMAP2"] = embedding[:, 1]
+ 
+# ─────────────────────────────────────────────
+# 7. COLOUR PALETTE – one colour per TRBV gene
+# ─────────────────────────────────────────────
+ 
+v_genes = sorted(df["v_gene"].unique())
+n_genes = len(v_genes)
+ 
+# Use a large qualitative colourmap
+cmap    = plt.colormaps.get_cmap("tab20").resampled(max(n_genes, 20))
+palette = {g: cmap(i % 20) for i, g in enumerate(v_genes)}
+ 
+colors  = df["v_gene"].map(palette).tolist()
+ 
+# ─────────────────────────────────────────────
+# 8. PLOT
+# ─────────────────────────────────────────────
+ 
+fig = plt.figure(figsize=(16, 10))
+ 
+# --- main axes -------------------------------------------------------
+ax_main = fig.add_axes([0.04, 0.18, 0.55, 0.78])   # [left, bottom, w, h]
+ 
+ax_main.scatter(
+    df["UMAP1"], df["UMAP2"],
+    c=colors, s=8, alpha=0.75, linewidths=0,
+)
+ax_main.set_xlabel("UMAP1", fontsize=12)
+ax_main.set_ylabel("UMAP2", fontsize=12)
+ax_main.set_title("UMAP1", fontsize=13, fontweight="bold")
+ 
+# ── identify two compact clusters to zoom into ──────────────────────
+# We auto-detect the two TRBV genes with the tightest spatial spread
+ 
+def cluster_bbox(gene):
+    sub = df[df["v_gene"] == gene]
+    return (sub["UMAP1"].min(), sub["UMAP1"].max(),
+            sub["UMAP2"].min(), sub["UMAP2"].max())
+ 
+def cluster_area(gene):
+    x0, x1, y0, y1 = cluster_bbox(gene)
+    return (x1 - x0) * (y1 - y0)
+ 
+gene_sizes   = df["v_gene"].value_counts()
+candidates   = gene_sizes[gene_sizes >= 10].index.tolist()
+tight_genes  = sorted(candidates, key=cluster_area)[:10]
+ 
+# pick two with clearly different colours / positions
+zoom_genes   = [tight_genes[0], tight_genes[1]]
+ 
+# --- zoom inset helper -----------------------------------------------
+def add_zoom_inset(ax_main, gene, ax_pos, label):
+    """Draw a zoom inset panel and connect it to the main plot."""
+    x0, x1, y0, y1 = cluster_bbox(gene)
+    pad = max((x1-x0)*0.5, 0.3)
+ 
+    # rectangle on main plot
+    rect = plt.Rectangle(
+        (x0 - pad, y0 - pad),
+        (x1 - x0) + 2*pad,
+        (y1 - y0) + 2*pad,
+        linewidth=1.2, edgecolor="black", facecolor="none", zorder=5
+    )
+    ax_main.add_patch(rect)
+ 
+    # inset axes
+    ax_ins = fig.add_axes(ax_pos)
+    sub    = df[df["v_gene"] == gene]
+    c_ins  = [palette[gene]] * len(sub)
+    ax_ins.scatter(sub["UMAP1"], sub["UMAP2"], c=c_ins, s=60, linewidths=0.3,
+                   edgecolors="white")
+    ax_ins.set_xlim(x0 - pad, x1 + pad)
+    ax_ins.set_ylim(y0 - pad, y1 + pad)
+    ax_ins.set_xticks([]); ax_ins.set_yticks([])
+    ax_ins.spines[:].set_linewidth(1.2)
+ 
+    # dashed connector lines (two corners)
+    for (xA, yA), (xB, yB) in [
+        ((x0 - pad, y1 + pad), (ax_pos[0], ax_pos[1] + ax_pos[3])),
+        ((x1 + pad, y1 + pad), (ax_pos[0] + ax_pos[2], ax_pos[1] + ax_pos[3])),
+    ]:
+        fig.add_artist(
+            ConnectionPatch(
+                xyA=(xA, yA), coordsA=ax_main.transData,
+                xyB=(xB, yB), coordsB=fig.transFigure,
+                arrowstyle="-", linestyle="dashed",
+                linewidth=0.8, color="black",
+            )
+        )
+ 
+# inset positions in figure coords [left, bottom, width, height]
+add_zoom_inset(ax_main, zoom_genes[0], [0.63, 0.54, 0.34, 0.42], "top")
+add_zoom_inset(ax_main, zoom_genes[1], [0.63, 0.06, 0.34, 0.42], "bottom")
+ 
+# ─────────────────────────────────────────────
+# 9. LEGEND  (multi-column, below the plot)
+# ─────────────────────────────────────────────
+ 
+handles = [
+    mpatches.Patch(color=palette[g], label=g)
+    for g in v_genes
+]
+fig.legend(
+    handles=handles,
+    loc="lower center",
+    ncol=min(n_genes, 10),
+    fontsize=7,
+    frameon=False,
+    bbox_to_anchor=(0.32, 0.00),
+    columnspacing=0.8,
+    handlelength=1.0,
+)
+ 
+plt.savefig(
+    os.path.join(OUTPUT_DIR, "umap_esm2_vgene1.png"),
+    dpi=200,
+    bbox_inches="tight",
+)
+print(f"Saved → {OUTPUT_DIR}/umap_esm2_vgene1.png")
+ 
+# also save as PDF for the paper
+plt.savefig(
+    os.path.join(OUTPUT_DIR, "umap_esm2_vgene1.pdf"),
+    bbox_inches="tight",
+)
+print(f"Saved → {OUTPUT_DIR}/umap_esm2_vgene1.pdf")
+ 
+plt.show()
