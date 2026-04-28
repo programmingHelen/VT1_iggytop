@@ -8,3 +8,7 @@ anndata
 awkward
 umap-learn
 matplotlib
+scanpy
+scirpy
+shap
+

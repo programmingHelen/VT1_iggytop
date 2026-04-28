@@ -146,3 +146,10 @@ dmypy.json
 docs/source/generated/
 docs/jupyter_execute/
 releases/*
+
+# Exclude rubish and output folders
+rubbish/
+notebooks/outputs/
+
+# Exclude all pkl files
+*.pkl
