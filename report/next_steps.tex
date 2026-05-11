@@ -1,0 +1,256 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{array}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{fontawesome5}
+
+% ── colours ──────────────────────────────────────────────────────────────────
+\definecolor{mainblue}{HTML}{2E5FA3}
+\definecolor{lightblue}{HTML}{D6E4F7}
+\definecolor{lightgray}{HTML}{F5F5F5}
+\definecolor{darkgray}{HTML}{333333}
+\definecolor{donegreen}{HTML}{27AE60}
+\definecolor{nextorg}{HTML}{E67E22}
+\definecolor{planblue}{HTML}{2980B9}
+\definecolor{donebg}{HTML}{EAFAF1}
+\definecolor{nextbg}{HTML}{FEF9E7}
+\definecolor{planbg}{HTML}{EBF5FB}
+
+% ── tcolorbox styles ──────────────────────────────────────────────────────────
+\tcbuselibrary{skins, breakable}
+\tcbset{
+  prioritybox/.style={
+    enhanced, breakable,
+    colback=#1!8, colframe=#1, arc=3pt,
+    boxrule=0.8pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+    fonttitle=\bfseries\color{#1},
+  }
+}
+
+% ── section formatting ────────────────────────────────────────────────────────
+\titleformat{\section}
+  {\large\bfseries\color{mainblue}}
+  {\thesection.}{0.5em}{}
+  [\vspace{-4pt}\textcolor{mainblue}{\rule{\linewidth}{0.8pt}}]
+
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{darkgray}}
+  {\thesubsection.}{0.5em}{}
+
+\titlespacing{\section}{0pt}{16pt}{6pt}
+\titlespacing{\subsection}{0pt}{10pt}{4pt}
+
+% ── header / footer ───────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{mainblue}{\textbf{TCR--Epitope Binding Prediction}}}
+\fancyhead[R]{\small\textcolor{darkgray}{Next Steps \& Roadmap}}
+\fancyfoot[C]{\small\textcolor{darkgray}{\thepage}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── hyperref ──────────────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true, linkcolor=mainblue, urlcolor=mainblue,
+  pdftitle={TCR-Epitope Next Steps},
+  pdfauthor={Helena Martinez Rio},
+}
+
+% ── status badge macro ────────────────────────────────────────────────────────
+\newcommand{\done}{\textcolor{white}{\colorbox{donegreen}{\small\textbf{Done}}}}
+\newcommand{\next}{\textcolor{white}{\colorbox{nextorg}{\small\textbf{Next}}}}
+\newcommand{\plan}{\textcolor{white}{\colorbox{planblue}{\small\textbf{Planned}}}}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+% ── title block ──────────────────────────────────────────────────────────────
+\begin{center}
+  {\LARGE\bfseries\color{mainblue} TCR--Epitope Binding Prediction}\\[6pt]
+  {\large\bfseries\color{darkgray} Next Steps \& Roadmap}\\[8pt]
+  {\small\color{gray} VT1 Project \quad|\quad Helena Mart\'inez R\'io \quad|\quad ZHAW 2025}
+\end{center}
+
+\vspace{6pt}
+\textcolor{mainblue}{\rule{\linewidth}{1.5pt}}
+\vspace{12pt}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Where We Are}
+
+A classical ML baseline pipeline is complete.
+Random Forest with ESM2 embeddings achieves \textbf{AUC 0.738}.
+UMAP analysis confirms that the joint TCR+Epitope embedding space has
+biologically meaningful structure (pathogen-specific clusters, MHC class separation).
+The next phase focuses on improving negative generation, building a proper
+evaluation framework, and moving to graph-based models.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Roadmap}
+
+\vspace{4pt}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\linewidth}{>{\centering\bfseries\color{mainblue}}p{0.5cm}
+                              >{\bfseries}p{3.2cm}
+                              X
+                              >{\centering\arraybackslash}p{1.5cm}}
+\toprule
+\rowcolor{mainblue}
+\textcolor{white}{\#} &
+\textcolor{white}{Step} &
+\textcolor{white}{Description} &
+\textcolor{white}{Status} \\
+\midrule
+
+\rowcolor{donebg}
+1 & Improve negatives &
+Epitope-aware mismatched pairing: for each positive pair, the negative TCR
+comes from a different specificity group, reducing false negative contamination. &
+\done \\
+
+\rowcolor{lightgray}
+2 & Epitope-split evaluation &
+Train/test split via \texttt{GroupShuffleSplit} by epitope so no epitope
+appears in both splits. Tests true generalisation to unseen epitopes. &
+\done \\
+
+\rowcolor{donebg}
+3 & Embedding analysis &
+UMAP projections of TCR and epitope embeddings separately.
+Silhouette score and intra/inter distance analysis quantify clustering by epitope. &
+\done \\
+
+\rowcolor{nextbg}
+4 & Larger ESM2 model &
+Replace \texttt{esm2\_t6\_8M} with \texttt{esm2\_t12\_35M} or
+\texttt{esm2\_t30\_150M} for richer representations.
+Expected AUC improvement of 2--5 points. &
+\next \\
+
+\rowcolor{lightgray}
+5 & Better negatives v2 &
+Generate negatives by pairing a TCR with an epitope from a different V-gene
+cluster. Biologically motivated and harder for the model to exploit spuriously. &
+\next \\
+
+\rowcolor{nextbg}
+6 & Knowledge graph integration &
+Use the iggytop Neo4j graph to add graph-level scalar features: TCR promiscuity
+score, epitope immunodominance score, MHC restriction pathway. &
+\next \\
+
+\rowcolor{planbg}
+7 & GNN model &
+Bipartite graph: TCR nodes + epitope nodes + binding edges.
+GraphSAGE or GAT for link prediction.
+Compare AUC against RF baseline. &
+\plan \\
+
+\rowcolor{lightgray}
+8 & Cross-dataset validation &
+Evaluate the final model on an external holdout (IEDB or McPAS-TCR)
+to test generalisation beyond iggytop. &
+\plan \\
+
+\bottomrule
+\end{tabularx}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Priority for Next Session}
+
+\begin{tcolorbox}[prioritybox=nextorg, title=Step 4 --- Larger ESM2 Model]
+The current pipeline uses the smallest ESM2 variant (8M parameters).
+Upgrading requires a single config change and a cluster re-run.
+This is expected to be the highest-impact single improvement.
+
+\vspace{4pt}
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+  \item \textbf{Code:} set \texttt{ESM\_MODEL = "facebook/esm2\_t12\_35M\_UR50D"}
+        in \texttt{tcr\_epitope\_minimal.py}
+  \item \textbf{Cluster:} re-run \texttt{submit\_minimal.slurm} on
+        \texttt{sacramento} node (A100 40\,GB)
+  \item \textbf{Evaluation:} compare AUC vs current baseline of 0.738
+\end{itemize}
+\end{tcolorbox}
+
+\vspace{8pt}
+
+\begin{tcolorbox}[prioritybox=planblue, title=Step 6 --- Knowledge Graph Features]
+The iggytop database already exposes a Neo4j knowledge graph.
+The goal is to extract scalar graph features and add them to the ESM2 feature matrix.
+
+\vspace{4pt}
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+  \item Run \texttt{create\_knowledge\_graph.py} to populate the local Neo4j instance
+  \item Query: for each TCR node, how many distinct epitopes is it connected to?
+        (\emph{promiscuity score})
+  \item Query: for each epitope node, how many TCRs bind it?
+        (\emph{immunodominance score})
+  \item Append these scalar features to $X$ alongside ESM2 embeddings and re-train RF
+\end{itemize}
+\end{tcolorbox}
+
+\vspace{8pt}
+
+\begin{tcolorbox}[prioritybox=mainblue, title=Step 7 --- GNN Architecture Design]
+Based on the embedding analysis, the recommended GNN design is:
+
+\vspace{4pt}
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+  \item \textbf{Graph type:} bipartite --- TCR nodes (features = ESM2 TCR emb.)
+        and epitope nodes (features = ESM2 epitope emb.)
+  \item \textbf{Edges:} known binding pairs from the training set (positive examples)
+  \item \textbf{Task:} link prediction --- does an edge exist between
+        TCR$_i$ and epitope$_j$?
+  \item \textbf{Architecture:} GraphSAGE (inductive; handles unseen nodes at inference)
+        or GAT (attention over neighbours)
+  \item \textbf{Library:} PyTorch Geometric (\texttt{torch\_geometric})
+\end{itemize}
+\end{tcolorbox}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Expected Timeline}
+
+\vspace{4pt}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\linewidth}{>{\bfseries\color{mainblue}}p{1.6cm} p{4.5cm} X}
+\toprule
+\rowcolor{mainblue}
+\textcolor{white}{Week} &
+\textcolor{white}{Goal} &
+\textcolor{white}{Deliverable} \\
+\midrule
+\rowcolor{lightgray}
+Week 1 & Larger ESM2 + re-evaluation &
+New AUC benchmark; updated results\_summary.tex \\
+
+Week 2 & Knowledge graph feature extraction &
+Graph scalar features added to feature matrix; AUC comparison \\
+
+\rowcolor{lightgray}
+Week 3 & GNN prototype (GraphSAGE) &
+First GNN AUC vs RF comparison in MLflow \\
+
+Week 4 & GNN tuning + cross-validation &
+Final model evaluation; report draft \\
+\bottomrule
+\end{tabularx}
+
+\vspace{16pt}
+\textcolor{mainblue}{\rule{\linewidth}{0.8pt}}
+\begin{center}
+\small\color{gray}
+Generated as part of the VT1 computational immunology project, ZHAW 2025.
+\end{center}
+
+\end{document}

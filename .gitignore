@@ -150,6 +150,7 @@ releases/*
 # Exclude rubish and output folders
 rubbish/
 notebooks/outputs/
+outputs/
 
 # Exclude all pkl files
 *.pkl

@@ -1,0 +1,205 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{microtype}
+\usepackage{parskip}
+
+% ── colours ──────────────────────────────────────────────────────────────────
+\definecolor{mainblue}{HTML}{2E5FA3}
+\definecolor{lightblue}{HTML}{D6E4F7}
+\definecolor{lightgray}{HTML}{F5F5F5}
+\definecolor{darkgray}{HTML}{333333}
+\definecolor{green}{HTML}{27AE60}
+\definecolor{orange}{HTML}{E67E22}
+
+% ── section formatting ────────────────────────────────────────────────────────
+\titleformat{\section}
+  {\large\bfseries\color{mainblue}}
+  {\thesection.}{0.5em}{}
+  [\vspace{-4pt}\textcolor{mainblue}{\rule{\linewidth}{0.8pt}}]
+
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{darkgray}}
+  {\thesubsection.}{0.5em}{}
+
+\titlespacing{\section}{0pt}{16pt}{6pt}
+\titlespacing{\subsection}{0pt}{10pt}{4pt}
+
+% ── header / footer ───────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{mainblue}{\textbf{TCR--Epitope Binding Prediction}}}
+\fancyhead[R]{\small\textcolor{darkgray}{Results Summary}}
+\fancyfoot[C]{\small\textcolor{darkgray}{\thepage}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── hyperref ──────────────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true, linkcolor=mainblue, urlcolor=mainblue,
+  pdftitle={TCR-Epitope Results Summary},
+  pdfauthor={Helena Martinez Rio},
+}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+% ── title block ──────────────────────────────────────────────────────────────
+\begin{center}
+  {\LARGE\bfseries\color{mainblue} TCR--Epitope Binding Prediction}\\[6pt]
+  {\large\bfseries\color{darkgray} Baseline Results Summary}\\[8pt]
+  {\small\color{gray} VT1 Project \quad|\quad Helena Mart\'inez R\'io \quad|\quad ZHAW 2025}
+\end{center}
+
+\vspace{6pt}
+\textcolor{mainblue}{\rule{\linewidth}{1.5pt}}
+\vspace{12pt}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Project Overview}
+
+This document summarises the baseline machine learning pipeline built to predict
+whether a T-cell receptor (TCR) binds a given epitope.
+The goal is to establish reference metrics before moving to deep learning and
+graph-based approaches.
+
+\subsection{Data}
+\begin{itemize}[leftmargin=1.4em, itemsep=2pt]
+  \item \textbf{Source:} iggytop database (\texttt{biocypher/iggytop})
+  \item \textbf{Size:} $\sim$300{,}000 positive TCR--epitope pairs extracted
+        via \texttt{scirpy.get.airr\_context}
+  \item \textbf{Sequences:} CDR3$\beta$ (VDJ$_1$ / TRB) and epitope amino-acid strings
+  \item \textbf{Negatives:} random mismatched pairing (each TCR paired with
+        a random epitope it did not come from)
+  \item \textbf{Final dataset:} $\sim$600{,}000 samples (1:1 positive:negative ratio)
+\end{itemize}
+
+\subsection{Feature Engineering}
+
+No hand-crafted features. Both sequences were embedded using
+\textbf{ESM2} (\texttt{facebook/esm2\_t6\_8M\_UR50D}), a protein language model
+pre-trained on 250M protein sequences, yielding a 320-dimensional vector per sequence.
+TCR and epitope embeddings were concatenated into a \textbf{640-dimensional feature vector}.
+
+\subsection{Models}
+\begin{itemize}[leftmargin=1.4em, itemsep=2pt]
+  \item \textbf{Logistic Regression} --- linear baseline
+        (scikit-learn, saga solver, balanced class weights)
+  \item \textbf{Random Forest} --- non-linear baseline
+        (100 trees, max depth 15, balanced class weights)
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Model Performance}
+
+\vspace{4pt}
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\linewidth}{>{\bfseries}l X X}
+\toprule
+\rowcolor{mainblue}
+\textcolor{white}{Metric} &
+\textcolor{white}{Logistic Regression} &
+\textcolor{white}{Random Forest} \\
+\midrule
+\rowcolor{lightblue}
+AUC-ROC     & 0.559 & \textbf{0.738} \\
+AUPR        & 0.548 & \textbf{0.731} \\
+\rowcolor{lightblue}
+F1-score    & 0.490 & \textbf{0.743} \\
+Precision   & 0.498 & \textbf{0.722} \\
+\rowcolor{lightblue}
+Recall      & 0.481 & \textbf{0.683} \\
+Accuracy    & 0.498 & \textbf{0.714} \\
+\rowcolor{lightblue}
+Specificity & 0.515 & \textbf{0.745} \\
+\bottomrule
+\end{tabularx}
+\caption{Test-set performance of both baseline models. Bold = better model per metric.}
+\end{table}
+
+\subsection{Interpretation}
+
+\begin{itemize}[leftmargin=1.4em, itemsep=3pt]
+  \item Random Forest substantially outperforms Logistic Regression (AUC 0.738 vs 0.559),
+        confirming that the relationship between ESM2 features and binding is \textbf{non-linear}.
+  \item Logistic Regression near AUC 0.5 indicates it cannot find a linear decision
+        boundary in the 640-dimensional embedding space.
+  \item AUC 0.738 is a strong baseline. Literature reports AUC 0.70--0.85 for similar
+        setups with random negative generation.
+  \item The gap between validation AUC (0.810) and test AUC (0.738) indicates mild
+        overfitting; increasing data volume or regularisation would help.
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Embedding Structure Analysis}
+
+UMAP projections of ESM2 embeddings were computed separately for TCR and epitope
+sequences to understand what structure the language model captures prior to any
+model training.
+
+\subsection{Key Findings}
+
+\begin{itemize}[leftmargin=1.4em, itemsep=3pt]
+  \item \textbf{TCR-only UMAP:} binding and non-binding labels are fully mixed ---
+        consistent with biology (TCR sequence alone does not determine binding;
+        the epitope context is required).
+  \item \textbf{TCR+Epitope UMAP:} distinct isolated clusters emerge, several
+        of which are strongly enriched for a single pathogen or MHC class.
+        This confirms that the \emph{joint} embedding captures binding-relevant structure.
+  \item \textbf{Pathogen coloring:} isolated islands correspond almost entirely to one
+        pathogen (e.g., all SARS-CoV-2 pairs in one region, all Influenza pairs in another).
+  \item \textbf{MHC class:} MHC class I and class II pairs separate in embedding space,
+        which is biologically expected since they present different peptide lengths and
+        bind different TCR subtypes.
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Feature Importance (SHAP)}
+
+SHAP (SHapley Additive exPlanations) was computed on the Random Forest to identify
+which of the 640 ESM2 dimensions contribute most to binding predictions.
+
+\begin{itemize}[leftmargin=1.4em, itemsep=3pt]
+  \item Both TCR and epitope embedding dimensions contribute;
+        no single dimension dominates the predictions.
+  \item Top SHAP features are distributed across both embedding halves,
+        confirming that the model exploits both sequence modalities.
+  \item High-SHAP dimensions correspond to latent biochemical properties
+        (hydrophobicity, charge distribution) rather than identifiable
+        sequence positions.
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Limitations}
+
+\begin{itemize}[leftmargin=1.4em, itemsep=3pt]
+  \item \textbf{Negative quality:} random mismatching may accidentally produce
+        true positives, adding label noise to the training data.
+  \item \textbf{Data leakage risk:} a random train/test split was used; an
+        epitope-aware split (\texttt{GroupShuffleSplit}) would give a stricter
+        and more realistic evaluation of generalisation to unseen epitopes.
+  \item \textbf{Model size:} ESM2 8M is the smallest ESM2 variant; larger models
+        (35M, 150M, 650M parameters) would produce richer representations.
+  \item \textbf{Relational signal:} classical ML cannot capture the relational
+        structure between TCRs and epitopes across patients and datasets.
+\end{itemize}
+
+\vspace{12pt}
+\textcolor{mainblue}{\rule{\linewidth}{0.8pt}}
+\begin{center}
+\small\color{gray}
+Generated as part of the VT1 computational immunology project, ZHAW 2025.
+\end{center}
+
+\end{document}
