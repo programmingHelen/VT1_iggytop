@@ -1,0 +1,37 @@
+# GraphSAGE Configuration
+model:
+  name: "graphsage"
+  num_layers: 3
+  hidden_dim: 128
+  output_dim: 64
+  
+  # Aggregation: "mean", "gcn", "pool", "lstm"
+  aggregator_type: "mean"
+  
+  # Dropout after each layer
+  dropout: 0.3
+  
+  # Sampling neighbors for each layer (important for scalability)
+  sample_sizes: [10, 10, 10]  # neighbor sample size per layer
+  
+  # Batch normalization
+  batch_norm: true
+  
+  # Activation function
+  activation: "relu"
+
+training:
+  batch_size: 32
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.00001  # 1e-5
+  
+  # Early stopping
+  early_stopping_patience: 10
+  early_stopping_metric: "val_auc"  # "val_loss" or "val_auc"
+  
+  # Gradient clipping
+  gradient_clip: 1.0
+  
+  # Validation split
+  val_split: 0.2

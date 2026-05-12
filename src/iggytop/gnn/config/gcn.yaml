@@ -1,0 +1,37 @@
+# Graph Convolutional Network (GCN) Configuration
+model:
+  name: "gcn"
+  num_layers: 3
+  hidden_dim: 128
+  output_dim: 64
+  
+  # Dropout after each layer
+  dropout: 0.3
+  
+  # Batch normalization
+  batch_norm: true
+  
+  # Add bias to convolutional layers
+  bias: true
+  
+  # Activation function
+  activation: "relu"
+  
+  # Cached mode (faster but requires full graph in memory)
+  cached: false
+
+training:
+  batch_size: 32
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.00001  # 1e-5
+  
+  # Early stopping
+  early_stopping_patience: 10
+  early_stopping_metric: "val_auc"
+  
+  # Gradient clipping
+  gradient_clip: 1.0
+  
+  # Validation split
+  val_split: 0.2

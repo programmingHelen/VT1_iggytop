@@ -1,0 +1,41 @@
+# Training Configuration
+experiment:
+  name: "tcr_epitope_gnn"
+  seed: 42
+  device: "cuda"  # "cuda" or "cpu"
+  num_workers: 4
+
+data:
+  # Path to AnnData file with TCR-epitope pairs
+  anndata_path: "data/deduplicated_anndata.h5ad"
+  
+  # Embedding type: "esm2" or other
+  embedding_type: "esm2"
+  embedding_dim: 320
+  
+  # Graph construction parameters
+  graph_type: "bipartite"  # "bipartite" for TCR-Epitope graph
+  
+  # Sampling for large graphs
+  max_neighbors: 50
+  negative_sampling_ratio: 1.0
+
+output:
+  # Where to save checkpoints and results
+  save_dir: "outputs/gnn_models"
+  checkpoint_interval: 5  # save every N epochs
+  
+  # MLflow tracking
+  use_mlflow: true
+  mlflow_uri: "sqlite:///outputs/mlflow.db"
+  mlflow_experiment: "gnn_binding_prediction"
+
+optimizer:
+  name: "adam"  # "adam", "sgd", "adamw"
+  
+  # Scheduler
+  use_scheduler: true
+  scheduler: "cosine"  # "cosine", "linear", "step"
+  warmup_steps: 500
+
+# Can be overridden by command-line args or environment variables

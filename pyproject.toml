@@ -26,6 +26,11 @@ dependencies = [
     "scirpy>=0.22.3",
     "openpyxl>=3.1.5,<4.0.0",
     "ijson>=3.4.0.post0",
+    "torch>=2.0.0",
+    "torch-geometric>=2.3.0",
+    "pyyaml>=6.0",
+    "mlflow>=2.0.0",
+    "scikit-learn>=1.0.0",
 ]
 
 [dependency-groups]

@@ -1,0 +1,36 @@
+# configs/gat_mlp.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# GAT encoder + MLP decoder
+# More expressive — attention weights + learnable decoder
+# Slower than sage_dot but potentially better AUC
+# ─────────────────────────────────────────────────────────────────────────────
+
+mlflow:
+  uri        : "sqlite:///outputs/mlflow.db"
+  experiment : "tcr_epitope_gnn"
+  run_name   : "gat_mlp"
+
+data:
+  shap_pkl          : "../../outputs/outputs_v2/shap_data.pkl"
+  val_frac          : 0.15
+  test_frac         : 0.10
+  neg_sampling_ratio: 1.0
+
+model:
+  encoder_type: "gat"
+  decoder_type: "mlp"
+  esm_dim     : 320
+  hidden_dim  : 256
+  out_dim     : 128
+  n_layers    : 2
+  n_heads     : 4
+  dropout     : 0.15
+
+training:
+  epochs         : 50
+  lr             : 5.0e-4
+  weight_decay   : 1.0e-4
+  patience       : 10
+  lr_patience    : 5
+  seed           : 42
+  checkpoint_dir : "outputs/checkpoints/gat_mlp"

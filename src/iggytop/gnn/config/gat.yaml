@@ -1,0 +1,41 @@
+# Graph Attention Network (GAT) Configuration
+model:
+  name: "gat"
+  num_layers: 3
+  hidden_dim: 128
+  output_dim: 64
+  
+  # Multi-head attention
+  num_heads: 8
+  
+  # Concat heads (if False, average)
+  concat_heads: true
+  
+  # Dropout for attention and features
+  dropout: 0.3
+  attention_dropout: 0.1
+  
+  # Batch normalization
+  batch_norm: true
+  
+  # Activation function
+  activation: "relu"
+  
+  # Add residual connections between layers
+  residual: true
+
+training:
+  batch_size: 32
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.00001  # 1e-5
+  
+  # Early stopping
+  early_stopping_patience: 10
+  early_stopping_metric: "val_auc"
+  
+  # Gradient clipping
+  gradient_clip: 1.0
+  
+  # Validation split
+  val_split: 0.2

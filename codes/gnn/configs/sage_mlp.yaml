@@ -1,0 +1,36 @@
+# configs/sage_mlp.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# GraphSAGE encoder + MLP decoder (ablation)
+# Tests whether a learnable decoder helps over dot product
+# while keeping the fast SAGE encoder
+# ─────────────────────────────────────────────────────────────────────────────
+
+mlflow:
+  uri        : "sqlite:///outputs/mlflow.db"
+  experiment : "tcr_epitope_gnn"
+  run_name   : "sage_mlp"
+
+data:
+  shap_pkl          : "../../outputs/outputs_v2/shap_data.pkl"
+  val_frac          : 0.15
+  test_frac         : 0.10
+  neg_sampling_ratio: 1.0
+
+model:
+  encoder_type: "sage"
+  decoder_type: "mlp"
+  esm_dim     : 320
+  hidden_dim  : 128
+  out_dim     : 64
+  n_layers    : 2
+  n_heads     : 4        # unused for SAGE
+  dropout     : 0.1
+
+training:
+  epochs         : 50
+  lr             : 1.0e-3
+  weight_decay   : 1.0e-4
+  patience       : 10
+  lr_patience    : 5
+  seed           : 42
+  checkpoint_dir : "outputs/checkpoints/sage_mlp"

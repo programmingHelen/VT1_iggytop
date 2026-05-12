@@ -1,0 +1,35 @@
+# configs/sage_dot.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# GraphSAGE encoder + dot product decoder
+# Fastest config — good first baseline
+# ─────────────────────────────────────────────────────────────────────────────
+
+mlflow:
+  uri        : "sqlite:///outputs/mlflow.db"
+  experiment : "tcr_epitope_gnn"
+  run_name   : "sage_dot_baseline"
+
+data:
+  shap_pkl          : "../../outputs/outputs_v2/shap_data.pkl"
+  val_frac          : 0.15
+  test_frac         : 0.10
+  neg_sampling_ratio: 1.0   # 1 negative per positive edge
+
+model:
+  encoder_type: "sage"   # "sage" | "gat"
+  decoder_type: "dot"    # "dot"  | "mlp"
+  esm_dim     : 320      # ESM2 8M output dimension
+  hidden_dim  : 128      # GNN hidden dimension
+  out_dim     : 64       # final node embedding dimension
+  n_layers    : 2        # GNN depth
+  n_heads     : 4        # attention heads (GAT only, ignored for SAGE)
+  dropout     : 0.1
+
+training:
+  epochs         : 50
+  lr             : 1.0e-3
+  weight_decay   : 1.0e-4
+  patience       : 10     # early stopping patience (epochs)
+  lr_patience    : 5      # LR scheduler patience (epochs)
+  seed           : 42
+  checkpoint_dir : "outputs/checkpoints/sage_dot"
